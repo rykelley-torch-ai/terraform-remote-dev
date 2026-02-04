@@ -1,0 +1,13 @@
+---
+# Default variables for docker role
+
+# Docker Compose standalone version (if installing standalone binary)
+docker_compose_version: "2.24.5"
+
+# Whether to install Docker Compose as standalone binary
+# (Docker Compose plugin is always installed)
+docker_install_compose_standalone: false
+
+# Docker log configuration
+docker_log_max_size: "100m"
+docker_log_max_file: "3"

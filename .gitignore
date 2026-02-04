@@ -1,0 +1,48 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+
+# Terragrunt
+.terragrunt-cache/
+
+# Ansible
+*.retry
+/ansible/inventory/hosts
+/ansible/inventory/*.yml
+!/ansible/inventory/.gitkeep
+
+# Local environment files
+.env
+.env.*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (never commit these!)
+*.pem
+*.key
+credentials.json
+secrets.yml
+secrets.yaml
+
+# AWS
+.aws/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/

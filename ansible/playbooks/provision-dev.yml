@@ -1,0 +1,105 @@
+---
+# Main provisioning playbook for remote development machine
+# Usage: ansible-playbook -i "IP_ADDRESS," playbooks/provision-dev.yml
+
+- name: Provision Remote Development Machine
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  vars:
+    # Override default variables here if needed
+    # python_versions:
+    #   - "3.12.2"
+    # golang_version: "1.22.0"
+
+  pre_tasks:
+    - name: Display target host information
+      ansible.builtin.debug:
+        msg: |
+          Provisioning remote development machine:
+          - Hostname: {{ ansible_hostname }}
+          - OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          - Architecture: {{ ansible_architecture }}
+          - CPUs: {{ ansible_processor_vcpus }}
+          - Memory: {{ ansible_memtotal_mb }} MB
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.wait_for:
+        path: /var/lib/cloud/instance/boot-finished
+        timeout: 300
+      when: ansible_virtualization_type == "kvm" or ansible_system_vendor == "Amazon EC2"
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+  roles:
+    - role: common
+      tags:
+        - common
+        - base
+
+    - role: docker
+      tags:
+        - docker
+        - containers
+
+    - role: python
+      tags:
+        - python
+        - development
+
+    - role: golang
+      tags:
+        - golang
+        - go
+        - development
+
+    - role: devops-tools
+      tags:
+        - devops
+        - terraform
+        - aws
+
+    - role: azure-cli
+      tags:
+        - azure
+        - cloud
+
+    - role: kubernetes
+      tags:
+        - kubernetes
+        - k8s
+
+  post_tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          ============================================
+          Remote development machine provisioned!
+          ============================================
+
+          Installed tools:
+          - Common: git, vim, neovim, tmux, htop, zsh (oh-my-zsh)
+          - Docker: Docker CE, Docker Compose
+          - Python: pyenv, Python 3.11/3.12, poetry
+          - Go: Go 1.22+, golangci-lint, gopls
+          - DevOps: AWS CLI, Azure CLI, Terraform (tfenv), Terragrunt, Packer
+          - Kubernetes: kubectl, helm, k9s, kubectx/kubens
+
+          Next steps:
+          1. SSH into the machine: ssh ubuntu@{{ ansible_host }}
+          2. Configure AWS credentials: aws configure
+          3. Configure Azure credentials: az login
+          4. Copy kubeconfig if needed: ~/.kube/config
+          5. Start developing!
+
+          Note: You may need to log out and back in for group
+          changes (docker) to take effect.
+          ============================================
+
+    - name: Reboot notice
+      ansible.builtin.debug:
+        msg: "Consider rebooting the instance to apply all changes: sudo reboot"

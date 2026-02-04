@@ -1,0 +1,18 @@
+---
+# Default variables for python role
+
+# Python versions to install via pyenv
+python_versions:
+  - "3.11.8"
+  - "3.12.2"
+
+# Global Python version
+python_global_version: "3.12.2"
+
+# Additional tools to install via pipx
+python_pipx_tools:
+  - black
+  - ruff
+  - mypy
+  - ipython
+  - httpie

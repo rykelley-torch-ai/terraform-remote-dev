@@ -1,0 +1,78 @@
+---
+# Azure CLI role - Install Azure CLI
+
+- name: Check if Azure CLI is installed
+  ansible.builtin.command: az --version
+  register: az_cli_check
+  changed_when: false
+  failed_when: false
+
+- name: Install Azure CLI prerequisites
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - apt-transport-https
+      - lsb-release
+      - gnupg
+    state: present
+    update_cache: yes
+  become: yes
+  when: az_cli_check.rc != 0
+
+- name: Create keyrings directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  become: yes
+  when: az_cli_check.rc != 0
+
+- name: Download Microsoft signing key
+  ansible.builtin.shell: |
+    curl -sLS https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg
+    chmod go+r /etc/apt/keyrings/microsoft.gpg
+  args:
+    creates: /etc/apt/keyrings/microsoft.gpg
+  become: yes
+
+- name: Add Azure CLI repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ {{ ansible_distribution_release }} main"
+    state: present
+    filename: azure-cli
+  become: yes
+
+- name: Install Azure CLI
+  ansible.builtin.apt:
+    name: azure-cli
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Create Azure config directory
+  ansible.builtin.file:
+    path: /home/ubuntu/.azure
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0700'
+  become: yes
+
+- name: Install Azure CLI extensions
+  ansible.builtin.shell: |
+    az extension add --name {{ item }} --yes 2>/dev/null || az extension update --name {{ item }}
+  become: yes
+  become_user: ubuntu
+  loop: "{{ azure_cli_extensions }}"
+  when: azure_cli_extensions | length > 0
+  changed_when: false
+
+- name: Verify Azure CLI installation
+  ansible.builtin.command: az --version
+  register: az_version
+  changed_when: false
+
+- name: Display Azure CLI version
+  ansible.builtin.debug:
+    msg: "{{ az_version.stdout_lines[0] }}"

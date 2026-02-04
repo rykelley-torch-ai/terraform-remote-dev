@@ -1,0 +1,50 @@
+---
+# Default variables for common role
+
+# Packages to install
+common_packages:
+  - git
+  - vim
+  - neovim
+  - tmux
+  - htop
+  - curl
+  - wget
+  - jq
+  - unzip
+  - zip
+  - tree
+  - net-tools
+  - dnsutils
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - apt-transport-https
+  - build-essential
+  - make
+  - gcc
+  - g++
+  - zsh
+  - fzf
+  - ripgrep
+  - fd-find
+  - bat
+  - ncdu
+  - iotop
+  - sysstat
+
+# Additional packages (user can override)
+common_additional_packages: []
+
+# Whether to upgrade all packages
+common_upgrade_packages: true
+
+# Timezone configuration
+common_timezone: "UTC"
+
+# Locale configuration
+common_locale: "en_US.UTF-8"
+
+# Whether to install Oh My Zsh
+common_install_ohmyzsh: true

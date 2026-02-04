@@ -1,0 +1,214 @@
+---
+# Common role - Base system setup for remote development
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: yes
+
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    upgrade: dist
+  become: yes
+  when: common_upgrade_packages | default(true)
+
+- name: Install essential packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+  become: yes
+
+- name: Install additional packages
+  ansible.builtin.apt:
+    name: "{{ common_additional_packages }}"
+    state: present
+  become: yes
+  when: common_additional_packages | length > 0
+
+- name: Set timezone
+  ansible.builtin.timezone:
+    name: "{{ common_timezone }}"
+  become: yes
+
+- name: Configure locale
+  ansible.builtin.locale_gen:
+    name: "{{ common_locale }}"
+    state: present
+  become: yes
+
+- name: Install Oh My Zsh for ubuntu user
+  ansible.builtin.shell: |
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+  args:
+    creates: "/home/ubuntu/.oh-my-zsh"
+  become: yes
+  become_user: ubuntu
+  when: common_install_ohmyzsh | default(true)
+
+- name: Change default shell to zsh
+  ansible.builtin.user:
+    name: ubuntu
+    shell: /usr/bin/zsh
+  become: yes
+  when: common_install_ohmyzsh | default(true)
+
+- name: Configure .zshrc
+  ansible.builtin.blockinfile:
+    path: /home/ubuntu/.zshrc
+    block: |
+      # Custom aliases
+      alias ll='ls -alF'
+      alias la='ls -A'
+      alias l='ls -CF'
+      alias ..='cd ..'
+      alias ...='cd ../..'
+      alias grep='grep --color=auto'
+
+      # Git aliases
+      alias gs='git status'
+      alias ga='git add'
+      alias gc='git commit'
+      alias gp='git push'
+      alias gl='git log --oneline -10'
+      alias gd='git diff'
+
+      # Docker aliases
+      alias d='docker'
+      alias dc='docker compose'
+      alias dps='docker ps'
+      alias dimg='docker images'
+
+      # Kubernetes aliases
+      alias k='kubectl'
+      alias kgp='kubectl get pods'
+      alias kgs='kubectl get services'
+      alias kgd='kubectl get deployments'
+
+      # Terraform/Terragrunt aliases
+      alias tf='terraform'
+      alias tg='terragrunt'
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - Custom aliases"
+    create: yes
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  become: yes
+  when: common_install_ohmyzsh | default(true)
+
+- name: Create common directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0755'
+  become: yes
+  loop:
+    - /home/ubuntu/.local/bin
+    - /home/ubuntu/projects
+    - /home/ubuntu/.config
+
+- name: Add ~/.local/bin to PATH in .zshrc
+  ansible.builtin.lineinfile:
+    path: /home/ubuntu/.zshrc
+    line: 'export PATH="$HOME/.local/bin:$PATH"'
+    create: yes
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  become: yes
+
+- name: Add ~/.local/bin to PATH in .bashrc
+  ansible.builtin.lineinfile:
+    path: /home/ubuntu/.bashrc
+    line: 'export PATH="$HOME/.local/bin:$PATH"'
+    create: yes
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  become: yes
+
+- name: Configure tmux
+  ansible.builtin.copy:
+    dest: /home/ubuntu/.tmux.conf
+    content: |
+      # Set prefix to Ctrl-a
+      set -g prefix C-a
+      unbind C-b
+      bind C-a send-prefix
+
+      # Enable mouse support
+      set -g mouse on
+
+      # Start windows and panes at 1
+      set -g base-index 1
+      setw -g pane-base-index 1
+
+      # Renumber windows when one is closed
+      set -g renumber-windows on
+
+      # Increase scrollback buffer
+      set -g history-limit 50000
+
+      # Enable 256 colors
+      set -g default-terminal "screen-256color"
+
+      # Split panes using | and -
+      bind | split-window -h
+      bind - split-window -v
+
+      # Reload config
+      bind r source-file ~/.tmux.conf \; display "Config reloaded!"
+
+      # Status bar
+      set -g status-interval 5
+      set -g status-left-length 30
+      set -g status-right-length 50
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  become: yes
+
+- name: Configure vim
+  ansible.builtin.copy:
+    dest: /home/ubuntu/.vimrc
+    content: |
+      " Basic settings
+      set nocompatible
+      syntax on
+      set number
+      set relativenumber
+      set autoindent
+      set smartindent
+      set tabstop=4
+      set shiftwidth=4
+      set expandtab
+      set hlsearch
+      set incsearch
+      set ignorecase
+      set smartcase
+      set showcmd
+      set showmatch
+      set wildmenu
+      set wildmode=list:longest
+      set mouse=a
+      set clipboard=unnamedplus
+      set backspace=indent,eol,start
+      set encoding=utf-8
+      set fileencoding=utf-8
+
+      " File type detection
+      filetype plugin indent on
+
+      " Better colors
+      set background=dark
+
+      " Disable swap files
+      set noswapfile
+      set nobackup
+      set nowritebackup
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  become: yes

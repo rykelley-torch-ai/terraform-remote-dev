@@ -1,0 +1,163 @@
+---
+# Python role - Install pyenv, Python versions, pip, poetry
+
+- name: Install Python build dependencies
+  ansible.builtin.apt:
+    name:
+      - make
+      - build-essential
+      - libssl-dev
+      - zlib1g-dev
+      - libbz2-dev
+      - libreadline-dev
+      - libsqlite3-dev
+      - wget
+      - curl
+      - llvm
+      - libncursesw5-dev
+      - xz-utils
+      - tk-dev
+      - libxml2-dev
+      - libxmlsec1-dev
+      - libffi-dev
+      - liblzma-dev
+    state: present
+  become: yes
+
+- name: Check if pyenv is installed
+  ansible.builtin.stat:
+    path: /home/ubuntu/.pyenv
+  register: pyenv_installed
+
+- name: Install pyenv
+  ansible.builtin.shell: |
+    curl https://pyenv.run | bash
+  args:
+    creates: /home/ubuntu/.pyenv
+  become: yes
+  become_user: ubuntu
+  when: not pyenv_installed.stat.exists
+
+- name: Configure pyenv in .zshrc
+  ansible.builtin.blockinfile:
+    path: /home/ubuntu/.zshrc
+    block: |
+      # Pyenv configuration
+      export PYENV_ROOT="$HOME/.pyenv"
+      [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+      eval "$(pyenv init -)"
+      eval "$(pyenv virtualenv-init -)"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - pyenv"
+    create: yes
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  become: yes
+
+- name: Configure pyenv in .bashrc
+  ansible.builtin.blockinfile:
+    path: /home/ubuntu/.bashrc
+    block: |
+      # Pyenv configuration
+      export PYENV_ROOT="$HOME/.pyenv"
+      [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+      eval "$(pyenv init -)"
+      eval "$(pyenv virtualenv-init -)"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - pyenv"
+    create: yes
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  become: yes
+
+- name: Install Python versions with pyenv
+  ansible.builtin.shell: |
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    pyenv install -s {{ item }}
+  args:
+    creates: "/home/ubuntu/.pyenv/versions/{{ item }}"
+  become: yes
+  become_user: ubuntu
+  loop: "{{ python_versions }}"
+
+- name: Set global Python version
+  ansible.builtin.shell: |
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    pyenv global {{ python_global_version }}
+  become: yes
+  become_user: ubuntu
+  changed_when: false
+
+- name: Install pipx
+  ansible.builtin.apt:
+    name: pipx
+    state: present
+  become: yes
+
+- name: Ensure pipx path is configured
+  ansible.builtin.shell: pipx ensurepath
+  become: yes
+  become_user: ubuntu
+  changed_when: false
+
+- name: Install Poetry via pipx
+  ansible.builtin.shell: |
+    pipx install poetry
+  args:
+    creates: /home/ubuntu/.local/bin/poetry
+  become: yes
+  become_user: ubuntu
+
+- name: Configure Poetry to create virtualenvs in project
+  ansible.builtin.shell: |
+    /home/ubuntu/.local/bin/poetry config virtualenvs.in-project true
+  become: yes
+  become_user: ubuntu
+  changed_when: false
+
+- name: Configure Poetry to not create virtualenvs automatically
+  ansible.builtin.shell: |
+    /home/ubuntu/.local/bin/poetry config virtualenvs.create true
+  become: yes
+  become_user: ubuntu
+  changed_when: false
+
+- name: Install additional Python tools via pipx
+  ansible.builtin.shell: |
+    pipx install {{ item }}
+  args:
+    creates: "/home/ubuntu/.local/bin/{{ item }}"
+  become: yes
+  become_user: ubuntu
+  loop: "{{ python_pipx_tools }}"
+  when: python_pipx_tools | length > 0
+
+- name: Verify pyenv installation
+  ansible.builtin.shell: |
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    pyenv --version
+  become: yes
+  become_user: ubuntu
+  register: pyenv_version
+  changed_when: false
+
+- name: Display pyenv version
+  ansible.builtin.debug:
+    msg: "{{ pyenv_version.stdout }}"
+
+- name: Verify Poetry installation
+  ansible.builtin.shell: /home/ubuntu/.local/bin/poetry --version
+  become: yes
+  become_user: ubuntu
+  register: poetry_version
+  changed_when: false
+
+- name: Display Poetry version
+  ansible.builtin.debug:
+    msg: "{{ poetry_version.stdout }}"

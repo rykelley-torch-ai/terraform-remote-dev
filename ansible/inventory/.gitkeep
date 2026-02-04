@@ -1,0 +1,5 @@
+# This directory is for inventory files
+# When running ansible, you can either:
+# 1. Use ad-hoc inventory: ansible-playbook -i "IP_ADDRESS," playbooks/provision-dev.yml
+# 2. Create a static inventory file here
+# 3. Use dynamic inventory with AWS EC2 plugin

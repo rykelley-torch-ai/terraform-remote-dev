@@ -1,0 +1,15 @@
+---
+# Default variables for golang role
+
+# Go version to install
+golang_version: "1.22.0"
+
+# Go tools to install via 'go install'
+golang_tools:
+  - golang.org/x/tools/gopls@latest
+  - github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+  - github.com/go-delve/delve/cmd/dlv@latest
+  - github.com/fatih/gomodifytags@latest
+  - github.com/cweill/gotests/gotests@latest
+  - github.com/josharian/impl@latest
+  - honnef.co/go/tools/cmd/staticcheck@latest

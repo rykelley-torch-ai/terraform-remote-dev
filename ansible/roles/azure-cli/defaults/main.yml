@@ -1,0 +1,9 @@
+---
+# Default variables for azure-cli role
+
+# Azure CLI extensions to install
+# Common extensions for DevOps work
+azure_cli_extensions:
+  - aks-preview
+  - azure-devops
+  - containerapp

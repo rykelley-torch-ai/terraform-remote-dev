@@ -1,0 +1,206 @@
+---
+# DevOps Tools role - Install Terraform, Terragrunt, AWS CLI, and related tools
+
+# ---------------------------------------------------------------------------------------------------------------------
+# AWS CLI v2
+# ---------------------------------------------------------------------------------------------------------------------
+
+- name: Check if AWS CLI is installed
+  ansible.builtin.command: aws --version
+  register: aws_cli_check
+  changed_when: false
+  failed_when: false
+
+- name: Download AWS CLI v2
+  ansible.builtin.get_url:
+    url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+    dest: /tmp/awscliv2.zip
+    mode: '0644'
+  become: yes
+  when: aws_cli_check.rc != 0
+
+- name: Unzip AWS CLI v2
+  ansible.builtin.unarchive:
+    src: /tmp/awscliv2.zip
+    dest: /tmp
+    remote_src: yes
+  become: yes
+  when: aws_cli_check.rc != 0
+
+- name: Install AWS CLI v2
+  ansible.builtin.command: /tmp/aws/install
+  become: yes
+  when: aws_cli_check.rc != 0
+
+- name: Clean up AWS CLI installer
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  become: yes
+  loop:
+    - /tmp/awscliv2.zip
+    - /tmp/aws
+  when: aws_cli_check.rc != 0
+
+- name: Create AWS config directory
+  ansible.builtin.file:
+    path: /home/ubuntu/.aws
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0700'
+  become: yes
+
+# ---------------------------------------------------------------------------------------------------------------------
+# tfenv (Terraform version manager)
+# ---------------------------------------------------------------------------------------------------------------------
+
+- name: Check if tfenv is installed
+  ansible.builtin.stat:
+    path: /home/ubuntu/.tfenv
+  register: tfenv_installed
+
+- name: Clone tfenv repository
+  ansible.builtin.git:
+    repo: https://github.com/tfutils/tfenv.git
+    dest: /home/ubuntu/.tfenv
+    depth: 1
+  become: yes
+  become_user: ubuntu
+  when: not tfenv_installed.stat.exists
+
+- name: Configure tfenv in .zshrc
+  ansible.builtin.blockinfile:
+    path: /home/ubuntu/.zshrc
+    block: |
+      # tfenv configuration
+      export PATH="$HOME/.tfenv/bin:$PATH"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - tfenv"
+    create: yes
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  become: yes
+
+- name: Configure tfenv in .bashrc
+  ansible.builtin.blockinfile:
+    path: /home/ubuntu/.bashrc
+    block: |
+      # tfenv configuration
+      export PATH="$HOME/.tfenv/bin:$PATH"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - tfenv"
+    create: yes
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  become: yes
+
+- name: Install Terraform via tfenv
+  ansible.builtin.shell: |
+    export PATH="$HOME/.tfenv/bin:$PATH"
+    tfenv install {{ devops_terraform_version }}
+    tfenv use {{ devops_terraform_version }}
+  become: yes
+  become_user: ubuntu
+  args:
+    creates: "/home/ubuntu/.tfenv/versions/{{ devops_terraform_version }}"
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Terragrunt
+# ---------------------------------------------------------------------------------------------------------------------
+
+- name: Check if Terragrunt is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/terragrunt
+  register: terragrunt_installed
+
+- name: Download Terragrunt
+  ansible.builtin.get_url:
+    url: "https://github.com/gruntwork-io/terragrunt/releases/download/v{{ devops_terragrunt_version }}/terragrunt_linux_amd64"
+    dest: /usr/local/bin/terragrunt
+    mode: '0755'
+  become: yes
+  when: not terragrunt_installed.stat.exists
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Packer (optional)
+# ---------------------------------------------------------------------------------------------------------------------
+
+- name: Check if Packer is installed
+  ansible.builtin.command: packer --version
+  register: packer_check
+  changed_when: false
+  failed_when: false
+  when: devops_install_packer | default(true)
+
+- name: Add HashiCorp GPG key
+  ansible.builtin.shell: |
+    wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+  become: yes
+  when: devops_install_packer | default(true)
+
+- name: Add HashiCorp repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+    state: present
+    filename: hashicorp
+  become: yes
+  when: devops_install_packer | default(true)
+
+- name: Install Packer
+  ansible.builtin.apt:
+    name: packer
+    state: present
+    update_cache: yes
+  become: yes
+  when: devops_install_packer | default(true)
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Additional DevOps tools
+# ---------------------------------------------------------------------------------------------------------------------
+
+- name: Install additional DevOps packages
+  ansible.builtin.apt:
+    name:
+      - ansible
+      - ansible-lint
+    state: present
+  become: yes
+  when: devops_install_ansible | default(true)
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Verify installations
+# ---------------------------------------------------------------------------------------------------------------------
+
+- name: Verify AWS CLI installation
+  ansible.builtin.command: aws --version
+  register: aws_version
+  changed_when: false
+
+- name: Display AWS CLI version
+  ansible.builtin.debug:
+    msg: "{{ aws_version.stdout }}"
+
+- name: Verify Terraform installation
+  ansible.builtin.shell: |
+    export PATH="$HOME/.tfenv/bin:$PATH"
+    terraform --version
+  become: yes
+  become_user: ubuntu
+  register: terraform_version
+  changed_when: false
+
+- name: Display Terraform version
+  ansible.builtin.debug:
+    msg: "{{ terraform_version.stdout_lines[0] }}"
+
+- name: Verify Terragrunt installation
+  ansible.builtin.command: /usr/local/bin/terragrunt --version
+  register: terragrunt_version
+  changed_when: false
+
+- name: Display Terragrunt version
+  ansible.builtin.debug:
+    msg: "{{ terragrunt_version.stdout }}"

@@ -1,0 +1,118 @@
+---
+# Golang role - Install Go and common tools
+
+- name: Check if Go is already installed
+  ansible.builtin.stat:
+    path: /usr/local/go/bin/go
+  register: go_installed
+
+- name: Get installed Go version
+  ansible.builtin.command: /usr/local/go/bin/go version
+  register: go_current_version
+  changed_when: false
+  failed_when: false
+  when: go_installed.stat.exists
+
+- name: Download Go
+  ansible.builtin.get_url:
+    url: "https://go.dev/dl/go{{ golang_version }}.linux-amd64.tar.gz"
+    dest: /tmp/go{{ golang_version }}.linux-amd64.tar.gz
+    mode: '0644'
+  become: yes
+  when: not go_installed.stat.exists or (go_current_version.stdout is defined and golang_version not in go_current_version.stdout)
+
+- name: Remove existing Go installation
+  ansible.builtin.file:
+    path: /usr/local/go
+    state: absent
+  become: yes
+  when: not go_installed.stat.exists or (go_current_version.stdout is defined and golang_version not in go_current_version.stdout)
+
+- name: Extract Go archive
+  ansible.builtin.unarchive:
+    src: /tmp/go{{ golang_version }}.linux-amd64.tar.gz
+    dest: /usr/local
+    remote_src: yes
+  become: yes
+  when: not go_installed.stat.exists or (go_current_version.stdout is defined and golang_version not in go_current_version.stdout)
+
+- name: Create Go workspace directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0755'
+  become: yes
+  loop:
+    - /home/ubuntu/go
+    - /home/ubuntu/go/bin
+    - /home/ubuntu/go/src
+    - /home/ubuntu/go/pkg
+
+- name: Configure Go environment in .zshrc
+  ansible.builtin.blockinfile:
+    path: /home/ubuntu/.zshrc
+    block: |
+      # Go configuration
+      export GOROOT=/usr/local/go
+      export GOPATH=$HOME/go
+      export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - golang"
+    create: yes
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  become: yes
+
+- name: Configure Go environment in .bashrc
+  ansible.builtin.blockinfile:
+    path: /home/ubuntu/.bashrc
+    block: |
+      # Go configuration
+      export GOROOT=/usr/local/go
+      export GOPATH=$HOME/go
+      export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - golang"
+    create: yes
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  become: yes
+
+- name: Configure Go environment in profile.d
+  ansible.builtin.copy:
+    dest: /etc/profile.d/golang.sh
+    content: |
+      export GOROOT=/usr/local/go
+      export GOPATH=$HOME/go
+      export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+    mode: '0644'
+  become: yes
+
+- name: Install Go tools
+  ansible.builtin.shell: |
+    export GOROOT=/usr/local/go
+    export GOPATH=/home/ubuntu/go
+    export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+    go install {{ item }}
+  become: yes
+  become_user: ubuntu
+  loop: "{{ golang_tools }}"
+  when: golang_tools | length > 0
+  changed_when: false
+
+- name: Verify Go installation
+  ansible.builtin.command: /usr/local/go/bin/go version
+  register: go_version_output
+  changed_when: false
+
+- name: Display Go version
+  ansible.builtin.debug:
+    msg: "{{ go_version_output.stdout }}"
+
+- name: Clean up downloaded archive
+  ansible.builtin.file:
+    path: /tmp/go{{ golang_version }}.linux-amd64.tar.gz
+    state: absent
+  become: yes

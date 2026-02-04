@@ -1,0 +1,14 @@
+---
+# Default variables for devops-tools role
+
+# Terraform version to install via tfenv
+devops_terraform_version: "1.7.3"
+
+# Terragrunt version
+devops_terragrunt_version: "0.55.1"
+
+# Whether to install Packer
+devops_install_packer: true
+
+# Whether to install Ansible on the remote machine
+devops_install_ansible: true
