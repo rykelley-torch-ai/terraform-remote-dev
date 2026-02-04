@@ -25,15 +25,72 @@ Before you begin, ensure you have the following installed locally:
 4. **Ansible** >= 2.15 ([install](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html))
 5. **SSH Key Pair** at `~/.ssh/id_rsa.pub` (or configure a different path)
 
+## AWS Profile Configuration
+
+**Important**: Before running any Terragrunt commands, ensure you're using the correct AWS profile.
+
+### Option 1: Export Environment Variable (Recommended)
+
+```bash
+# Set for current terminal session
+export AWS_PROFILE=your-profile-name
+
+# Verify you're using the correct account
+aws sts get-caller-identity
+```
+
+### Option 2: Use AWS_PROFILE Inline
+
+```bash
+AWS_PROFILE=your-profile-name terragrunt apply
+```
+
+### Option 3: Set Default Profile
+
+```bash
+# In ~/.aws/config
+[default]
+region = us-east-2
+
+[profile your-profile-name]
+region = us-east-2
+```
+
+### Verify Your Account
+
+Always verify you're in the correct account before deploying:
+
+```bash
+# Check current identity
+aws sts get-caller-identity
+
+# Expected output shows Account ID
+{
+    "UserId": "AIDAEXAMPLE",
+    "Account": "123456789012",  # <-- Verify this is correct
+    "Arn": "arn:aws:iam::123456789012:user/your-user"
+}
+```
+
 ## Quick Start
 
-### 1. Clone and Navigate
+### 1. Set AWS Profile
+
+```bash
+# Set your AWS profile
+export AWS_PROFILE=your-profile-name
+
+# Verify correct account
+aws sts get-caller-identity
+```
+
+### 2. Clone and Navigate
 
 ```bash
 cd terraform-remote-dev
 ```
 
-### 2. Review Configuration
+### 3. Review Configuration
 
 Edit the Terragrunt configuration if needed:
 
@@ -42,7 +99,7 @@ Edit the Terragrunt configuration if needed:
 vim environments/dev/remote-dev/terragrunt.hcl
 ```
 
-### 3. Deploy the Instance
+### 4. Deploy the Instance
 
 ```bash
 cd environments/dev/remote-dev
@@ -55,7 +112,7 @@ This will:
 - Create a security group allowing SSH from your current IP
 - Launch an EC2 instance with Ubuntu 24.04
 
-### 4. Provision with Ansible
+### 5. Provision with Ansible
 
 After the instance is running, provision it with all development tools:
 
@@ -70,7 +127,7 @@ Or run specific roles:
 ./scripts/provision.sh --tags "docker,python"
 ```
 
-### 5. Connect
+### 6. Connect
 
 ```bash
 # Using the helper script
@@ -147,10 +204,13 @@ terraform-remote-dev/
 | Script | Description |
 |--------|-------------|
 | `scripts/connect.sh` | SSH into the remote instance |
+| `scripts/connect.sh -v` | SSH with verbose output for debugging |
+| `scripts/connect.sh --troubleshoot` | Run full SSH diagnostics |
 | `scripts/provision.sh` | Run Ansible to configure the instance |
 | `scripts/provision.sh --tags docker` | Run only specific Ansible roles |
 | `scripts/destroy.sh` | Destroy the EC2 instance |
 | `scripts/update-ssh-ip.sh` | Update security group when your IP changes |
+| `scripts/troubleshoot.sh` | Diagnose SSH connection problems |
 
 ## Remote State Setup (Recommended)
 
@@ -297,12 +357,63 @@ aws ec2 start-instances --instance-ids $(terragrunt output -raw instance_id)
 
 ## Troubleshooting
 
-### SSH Connection Refused
+### SSH Connection Issues
 
-Your IP may have changed. Update the security group:
+Run the troubleshooting script for a full diagnostic:
 
 ```bash
+./scripts/connect.sh --troubleshoot
+```
+
+Or use verbose mode to see what's happening:
+
+```bash
+./scripts/connect.sh -v
+```
+
+### Common SSH Problems
+
+**1. "Connection refused" or "Connection timed out"**
+
+Your IP has likely changed since you ran `terragrunt apply`:
+
+```bash
+# Update security group with your current IP
 ./scripts/update-ssh-ip.sh
+```
+
+**2. "Permission denied (publickey)"**
+
+SSH key mismatch. Check which key was used:
+
+```bash
+# See which key the instance expects
+cd environments/dev/remote-dev
+terragrunt output ssh_command
+
+# Make sure you have the matching private key
+ls -la ~/.ssh/id_rsa
+```
+
+**3. Instance not responding**
+
+The instance may still be initializing (takes 2-3 minutes after launch):
+
+```bash
+# Check instance state
+cd environments/dev/remote-dev
+aws ec2 describe-instances \
+  --instance-ids $(terragrunt output -raw instance_id) \
+  --query 'Reservations[0].Instances[0].State.Name'
+```
+
+**4. Wrong AWS account**
+
+Verify you're querying the right account:
+
+```bash
+export AWS_PROFILE=your-profile-name
+aws sts get-caller-identity
 ```
 
 ### Ansible Fails on First Run

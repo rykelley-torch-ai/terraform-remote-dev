@@ -62,6 +62,20 @@ echo -e "${GREEN}Remote Development Instance Provisioning${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
 
+# Show current AWS identity
+echo -e "${BLUE}Current AWS Identity:${NC}"
+aws sts get-caller-identity --output table 2>/dev/null || {
+    echo -e "${RED}Error: Could not get AWS identity. Check your credentials.${NC}"
+    echo -e "${YELLOW}Hint: export AWS_PROFILE=your-profile-name${NC}"
+    exit 1
+}
+echo ""
+
+if [ -n "$AWS_PROFILE" ]; then
+    echo -e "${GREEN}Using AWS_PROFILE: ${AWS_PROFILE}${NC}"
+fi
+echo ""
+
 # Check if Ansible is installed
 if ! command -v ansible-playbook &> /dev/null; then
     echo -e "${RED}Error: ansible-playbook not found.${NC}"

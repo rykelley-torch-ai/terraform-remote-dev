@@ -40,7 +40,7 @@ inputs = {
 
   # SSH configuration - uses default ~/.ssh/id_rsa.pub
   # Uncomment and modify if you want to use a different key
-  # ssh_public_key_path = "~/.ssh/remote-dev.pub"
+  ssh_public_key_path = "~/.ssh/remote-dev.pub"
 
   # SSH access - leave empty to auto-detect your current IP
   # Or specify explicit CIDR blocks:
@@ -48,7 +48,7 @@ inputs = {
   allowed_ssh_cidr_blocks = []
 
   # Elastic IP - set to true if you want a persistent IP address
-  use_elastic_ip = false
+  use_elastic_ip = true
 
   # Detailed monitoring (costs extra)
   enable_detailed_monitoring = false
@@ -56,6 +56,6 @@ inputs = {
   # Additional tags
   common_tags = {
     Purpose = "Remote Development"
-    Owner   = "DevOps"
+    Owner   = "Ryan Kelley"
   }
 }

@@ -17,7 +17,7 @@ resource "aws_s3_bucket" "terraform_state" {
 
   # Prevent accidental deletion
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   tags = merge(var.common_tags, {

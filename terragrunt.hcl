@@ -19,7 +19,7 @@ locals {
   #   1. cd environments/dev/terraform-backend && terragrunt apply
   #   2. Set use_remote_state = true below
   #   3. For existing modules, run: terragrunt init -migrate-state
-  use_remote_state = false
+  use_remote_state = true
 }
 
 # ---------------------------------------------------------------------------------------------------------------------

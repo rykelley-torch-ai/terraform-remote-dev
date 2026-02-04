@@ -19,6 +19,20 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}Updating security group with your current IP...${NC}"
 echo ""
 
+# Show current AWS identity
+echo -e "${BLUE}Current AWS Identity:${NC}"
+aws sts get-caller-identity --output table 2>/dev/null || {
+    echo -e "${RED}Error: Could not get AWS identity. Check your credentials.${NC}"
+    echo -e "${YELLOW}Hint: export AWS_PROFILE=your-profile-name${NC}"
+    exit 1
+}
+echo ""
+
+if [ -n "$AWS_PROFILE" ]; then
+    echo -e "${GREEN}Using AWS_PROFILE: ${AWS_PROFILE}${NC}"
+fi
+echo ""
+
 # Get current public IP
 CURRENT_IP=$(curl -s https://checkip.amazonaws.com)
 echo -e "${BLUE}Your current IP: ${CURRENT_IP}${NC}"
